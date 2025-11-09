@@ -42,19 +42,35 @@ solana config set --url https://api.mainnet-beta.solana.com
 
 ## Installation Steps
 
-### Step 1: Clone & Build
+### Step 1: Install Protobuf Compiler
+
+The project requires `protoc` (Protocol Buffers compiler) for the Jito dependencies:
+
+```bash
+# Install protoc via cargo (one-time setup)
+cargo install protoc-bin-vendored
+
+# Verify installation
+protoc-bin-which
+```
+
+### Step 2: Build the Project
 
 ```bash
 cd /home/user/pump-rs
 
-# Build the project (this may take a few minutes)
+# Use the build script (automatically sets PROTOC)
+./build.sh release
+
+# OR build manually
+export PROTOC=$(protoc-bin-which)
 cargo build --release
 
 # Verify build succeeded
 ls -lh target/release/pump-rs
 ```
 
-### Step 2: Create Wallet Keypairs
+### Step 3: Create Wallet Keypairs
 
 You need TWO wallets:
 
@@ -83,7 +99,7 @@ solana-keygen new -o ~/.config/solana/jito-auth.json
 # This wallet doesn't need SOL, it's just for authentication
 ```
 
-### Step 3: Configure Environment Variables
+### Step 4: Configure Environment Variables
 
 ```bash
 # Copy the example file
@@ -112,7 +128,7 @@ BLOCK_ENGINE_URL=https://mainnet.block-engine.jito.wtf
 RUST_LOG=info
 ```
 
-### Step 4: Fund Your Wallet
+### Step 5: Fund Your Wallet
 
 ```bash
 # Check your wallet address
