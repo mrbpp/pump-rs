@@ -118,8 +118,9 @@ vim .env
 FUND_KEYPAIR_PATH=/home/user/.config/solana/fund-wallet.json
 AUTH_KEYPAIR_PATH=/home/user/.config/solana/jito-auth.json
 
-# RPC URL - HIGHLY RECOMMENDED to use paid RPC
+# RPC URLs - HIGHLY RECOMMENDED to use paid RPC
 RPC_URL=https://api.mainnet-beta.solana.com
+WS_URL=wss://api.mainnet-beta.solana.com
 
 # Jito Block Engine
 BLOCK_ENGINE_URL=https://mainnet.block-engine.jito.wtf

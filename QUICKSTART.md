@@ -30,6 +30,7 @@ nano .env  # Edit these lines:
 FUND_KEYPAIR_PATH=/home/user/.config/solana/fund-wallet.json
 AUTH_KEYPAIR_PATH=/home/user/.config/solana/jito-auth.json
 RPC_URL=https://api.mainnet-beta.solana.com
+WS_URL=wss://api.mainnet-beta.solana.com
 BLOCK_ENGINE_URL=https://mainnet.block-engine.jito.wtf
 RUST_LOG=info
 ```
