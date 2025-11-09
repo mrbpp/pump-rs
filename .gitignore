@@ -1,3 +1,7 @@
 .env
 *.json
 /target
+
+# Wallet keypairs (CRITICAL - DO NOT COMMIT)
+wallets/
+*.json
