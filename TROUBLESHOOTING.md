@@ -9,7 +9,7 @@ Error: Custom { kind: Uncategorized, error: "failed to lookup address informatio
 Temporary failure in name resolution" }
 ```
 
-**Cause:** Cannot resolve `frontend-api.pump.fun` DNS
+**Cause:** Cannot resolve `frontend-api-v3.pump.fun` DNS
 
 **Solutions:**
 
@@ -19,7 +19,7 @@ Temporary failure in name resolution" }
 ping -c 3 8.8.8.8
 
 # Test DNS resolution
-nslookup frontend-api.pump.fun
+nslookup frontend-api-v3.pump.fun
 ```
 
 #### 2. Try Alternative DNS
@@ -39,7 +39,7 @@ echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
 #### 4. Check if pump.fun is Accessible
 ```bash
 # Test HTTPS connection
-curl -I https://frontend-api.pump.fun
+curl -I https://frontend-api-v3.pump.fun
 
 # If blocked, try with VPN or wait
 ```
@@ -72,7 +72,7 @@ unset https_proxy
 **Test Direct Connection:**
 ```bash
 curl -v https://api.mainnet-beta.solana.com
-curl -v https://frontend-api.pump.fun
+curl -v https://frontend-api-v3.pump.fun
 ```
 
 ---
@@ -285,7 +285,7 @@ cat .env | grep -v SECRET | grep -v PROJECT
 
 # Check connectivity
 curl -I https://api.mainnet-beta.solana.com
-curl -I https://frontend-api.pump.fun
+curl -I https://frontend-api-v3.pump.fun
 
 # Test protoc
 protoc-bin-which
@@ -318,10 +318,10 @@ $(protoc-bin-which) --version
 ### Network Packet Inspection
 ```bash
 # Monitor network traffic (requires tcpdump)
-sudo tcpdump -i any host frontend-api.pump.fun
+sudo tcpdump -i any host frontend-api-v3.pump.fun
 
 # Check TLS handshake
-openssl s_client -connect frontend-api.pump.fun:443
+openssl s_client -connect frontend-api-v3.pump.fun:443
 ```
 
 ### Test Individual Components

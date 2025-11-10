@@ -5,8 +5,8 @@ pub const SLOT_CHECKER_MAINNET: &str =
 
 // URLs
 pub const PUMP_WS_URL: &str =
-    "https://frontend-api.pump.fun/socket.io/?EIO=4&transport=websocket";
-pub const PUMP_WS_HOST: &str = "frontend-api.pump.fun";
+    "https://frontend-api-v3.pump.fun/socket.io/?EIO=4&transport=websocket";
+pub const PUMP_WS_HOST: &str = "frontend-api-v3.pump.fun";
 pub const PUMP_PORTAL_WS_URL: &str = "https://pumpportal.fun/api/data";
 pub const PUMP_PORTAL_WS_HOST: &str = "pumpportal.fun";
 

@@ -171,7 +171,7 @@ pub fn subscribe_to_pump(slot: Arc<RwLock<u64>>) -> JoinHandle<()> {
 pub async fn get_tokens_held_pump(
     owner: &Pubkey,
 ) -> Result<Vec<PumpTokenData>, Box<dyn Error>> {
-    let url = "https://frontend-api.pump.fun/balances/{}?limit=6666&offset=0&minBalance=0";
+    let url = "https://frontend-api-v3.pump.fun/balances/{}?limit=6666&offset=0&minBalance=0";
     let url = url.replace("{}", &owner.to_string());
     Ok(reqwest::get(&url)
         .await?
@@ -750,7 +750,7 @@ pub async fn fetch_metadata(
 async fn fetch_metadata_inner(
     mint: &Pubkey,
 ) -> Result<PumpTokenInfo, Box<dyn Error>> {
-    let url = format!("https://frontend-api.pump.fun/coins/{}", mint);
+    let url = format!("https://frontend-api-v3.pump.fun/coins/{}", mint);
     info!("Fetching metadata from: {}", url);
     let res = reqwest::get(&url).await?;
     info!("res: {:?}", res);

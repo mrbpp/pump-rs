@@ -651,7 +651,7 @@ If `bench-pump` isn't working, it's likely due to:
 **1. WebSocket Connection Issues**
 ```bash
 # Check if you can connect to pump.fun
-curl -I https://frontend-api.pump.fun
+curl -I https://frontend-api-v3.pump.fun
 ```
 
 **2. Socket.io Protocol Changes**
