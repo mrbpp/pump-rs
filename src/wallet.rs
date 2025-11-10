@@ -80,7 +80,10 @@ impl WalletManager {
         count: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Create directory if it doesn't exist
-        std::fs::create_dir_all(&self.wallet_directory)?;
+        if !std::path::Path::new(&self.wallet_directory).exists() {
+            std::fs::create_dir_all(&self.wallet_directory)?;
+            info!("Created directory: {}", self.wallet_directory);
+        }
 
         let wallets = (0..count)
             .map(|_| {
