@@ -66,11 +66,14 @@ Block Engine: https://mainnet.block-engine.jito.wtf
 
 ## 💰 **Wallet Management**
 
-### **`wallets`** - View Wallet Balances
-**Purpose:** Check balances of your trading wallets
+### **`wallets`** - Wallet Management
+**Purpose:** Create and manage trading wallets, check balances
 
 **Usage:**
 ```bash
+# Create new wallets
+./target/release/pump-rs wallets --create <COUNT>
+
 # View SOL balances
 ./target/release/pump-rs wallets
 
@@ -78,12 +81,25 @@ Block Engine: https://mainnet.block-engine.jito.wtf
 ./target/release/pump-rs wallets --token-balances
 ```
 
-**What it shows:**
-- Main wallet SOL balance
-- Multi-wallet setup balances (if using bundle mode)
-- All SPL token holdings (with --token-balances)
+**Examples:**
+```bash
+# Create 10 new wallets
+./target/release/pump-rs wallets --create 10
 
-**Use when:** Checking available funds before trading
+# Check balances
+./target/release/pump-rs wallets
+```
+
+**What it does:**
+- `--create <COUNT>`: Creates N new keypair wallets in WALLET_DIRECTORY
+- Default: Shows SOL balances of all wallets
+- `--token-balances`: Shows all SPL token holdings
+
+**Created wallets are saved as:**
+- Directory: `./wallets/` (or WALLET_DIRECTORY from .env)
+- Filename format: `{PUBKEY}.json`
+
+**Use when:** Setting up multi-wallet bundle launches, checking available funds
 
 ---
 

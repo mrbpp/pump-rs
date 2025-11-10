@@ -100,9 +100,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let manager = make_manager().await?;
             manager.drain().await?;
         }
-        Command::Wallets { token_balances } => {
-            let manager = make_manager().await?;
-            if token_balances {
+        Command::Wallets {
+            token_balances,
+            create,
+        } => {
+            let mut manager = make_manager().await?;
+            if let Some(count) = create {
+                info!("Creating {} wallets...", count);
+                manager.create_wallets(count)?;
+                info!("Wallets created in: {}", manager.wallet_directory);
+            } else if token_balances {
                 manager.token_balances().await;
             } else {
                 manager.balances().await;

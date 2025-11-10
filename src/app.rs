@@ -56,6 +56,9 @@ pub enum Command {
     Wallets {
         #[arg(long, default_value = "false")]
         token_balances: bool,
+
+        #[arg(long)]
+        create: Option<usize>,
     },
     LookForGeyser {},
     BundleStatus {

@@ -48,17 +48,22 @@ impl WalletManager {
         let wallet_directory =
             wallet_directory.unwrap_or_else(|| "./wallets".to_string());
         let mut wallets = Vec::new();
-        let avb = std::fs::read_dir(&wallet_directory)
-            .unwrap()
-            .map(|entry| entry.unwrap().path())
-            .filter(|path| path.extension().unwrap() == "json")
-            .collect::<Vec<_>>();
-        for wallet in avb {
-            let wallet = Keypair::read_from_file(wallet).unwrap();
-            wallets.push(wallet);
+
+        // Only read existing wallets if directory exists
+        if let Ok(entries) = std::fs::read_dir(&wallet_directory) {
+            let avb = entries
+                .filter_map(|entry| entry.ok())
+                .map(|entry| entry.path())
+                .filter(|path| path.extension().map_or(false, |ext| ext == "json"))
+                .collect::<Vec<_>>();
+            for wallet in avb {
+                if let Ok(wallet) = Keypair::read_from_file(wallet) {
+                    wallets.push(wallet);
+                }
+            }
         }
 
-        info!("Read in {} wallets", wallets.len());
+        info!("Read in {} wallets from {}", wallets.len(), wallet_directory);
 
         Self {
             owner,
@@ -74,6 +79,9 @@ impl WalletManager {
         &mut self,
         count: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        // Create directory if it doesn't exist
+        std::fs::create_dir_all(&self.wallet_directory)?;
+
         let wallets = (0..count)
             .map(|_| {
                 let wallet = Keypair::new();
@@ -83,11 +91,12 @@ impl WalletManager {
                     wallet.pubkey()
                 );
                 wallet.write_to_file(&path).unwrap();
+                info!("Created wallet: {}", wallet.pubkey());
                 wallet
             })
             .collect::<Vec<_>>();
 
-        info!("Created {} wallets", wallets.len());
+        info!("Created {} wallets in {}", wallets.len(), self.wallet_directory);
 
         self.wallets.extend(wallets);
 
