@@ -38,7 +38,8 @@ use solana_transaction_status::{
 };
 
 use crate::constants::{
-    ASSOCIATED_TOKEN_PROGRAM, EVENT_AUTHORITY, PUMP_BUY_METHOD,
+    ASSOCIATED_TOKEN_PROGRAM, EVENT_AUTHORITY, FEE_CONFIG,
+    FEE_CONFIG_PROGRAM, GLOBAL_VOLUME_ACCUMULATOR, PUMP_BUY_METHOD,
     PUMP_FEE_ADDRESS, PUMP_FUN_MINT_AUTHORITY, PUMP_FUN_PROGRAM,
     PUMP_GLOBAL_ADDRESS, PUMP_SELL_METHOD, SYSTEM_PROGRAM_ID,
     TOKEN_PROGRAM,
@@ -53,6 +54,7 @@ pub struct PumpFunSwapInstructionData {
     pub method_id: [u8; 8],
     pub token_amount: u64,
     pub lamports: u64,
+    pub track_volume: u8,  // 0 = None, 1 = Some(false), 2 = Some(true)
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
@@ -549,6 +551,7 @@ pub fn make_pump_sell_ix(
         method_id: PUMP_SELL_METHOD,
         token_amount,
         lamports: 0,
+        track_volume: 0,  // 0 = None
     };
 
     Ok(Instruction::new_with_borsh(
@@ -567,8 +570,16 @@ pub fn get_creator_vault(creator: &Pubkey) -> Result<Pubkey, Box<dyn Error>> {
     ).0)
 }
 
+/// Derive the user volume accumulator PDA for tracking user trading volume
+pub fn get_user_volume_accumulator(user: &Pubkey) -> Result<Pubkey, Box<dyn Error>> {
+    Ok(Pubkey::find_program_address(
+        &[b"user_volume_accumulator", user.as_ref()],
+        &Pubkey::from_str(PUMP_FUN_PROGRAM)?,
+    ).0)
+}
+
 /// Interact With Pump.Fun 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-/// Input Accounts (Updated May-August 2024)
+/// Input Accounts (Current Mainnet - 16 accounts)
 /// #1 - Global: 4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf
 /// #2 - Fee Recipient: Pump.fun Fee Account [Writable]
 /// #3 - Mint
@@ -578,9 +589,13 @@ pub fn get_creator_vault(creator: &Pubkey) -> Result<Pubkey, Box<dyn Error>> {
 /// #7 - User - owner, sender [Writable, Signer, Fee Payer]
 /// #8 - System Program (11111111111111111111111111111111)
 /// #9 - Token Program (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)
-/// #10 - Creator Vault [Writable] (replaces Rent in old version)
+/// #10 - Creator Vault PDA [Writable]
 /// #11 - Event Authority: Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1
 /// #12 - Program: Pump.fun Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+/// #13 - Global Volume Accumulator [Writable]
+/// #14 - User Volume Accumulator PDA [Writable]
+/// #15 - Fee Config
+/// #16 - Fee Config Program
 pub fn make_pump_swap_ix(
     owner: Pubkey,
     mint: Pubkey,
@@ -594,8 +609,8 @@ pub fn make_pump_swap_ix(
     // Calculate creator vault PDA using helper function
     let creator_vault = get_creator_vault(&creator)?;
 
-    // 12 accounts (May-August 2024 update)
-    let accounts: [AccountMeta; 12] = [
+    // 16 accounts (Current mainnet version)
+    let accounts: [AccountMeta; 16] = [
         AccountMeta::new_readonly(
             Pubkey::from_str(PUMP_GLOBAL_ADDRESS)?,
             false,
@@ -614,12 +629,17 @@ pub fn make_pump_swap_ix(
         AccountMeta::new(creator_vault, false),  // #10 - Creator Vault
         AccountMeta::new_readonly(Pubkey::from_str(EVENT_AUTHORITY)?, false),  // #11
         AccountMeta::new_readonly(Pubkey::from_str(PUMP_FUN_PROGRAM)?, false),  // #12
+        AccountMeta::new(Pubkey::from_str(GLOBAL_VOLUME_ACCUMULATOR)?, false),  // #13
+        AccountMeta::new(get_user_volume_accumulator(&owner)?, false),  // #14
+        AccountMeta::new_readonly(Pubkey::from_str(FEE_CONFIG)?, false),  // #15
+        AccountMeta::new_readonly(Pubkey::from_str(FEE_CONFIG_PROGRAM)?, false),  // #16
     ];
 
     let data = PumpFunSwapInstructionData {
         method_id: PUMP_BUY_METHOD,
         token_amount,
         lamports,
+        track_volume: 0,  // 0 = None
     };
 
     Ok(Instruction::new_with_borsh(
