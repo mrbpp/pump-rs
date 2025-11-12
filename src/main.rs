@@ -329,6 +329,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         rpc_client.get_latest_blockhash().await?,
                         pump_accounts,
                         holding.amount,
+                        &rpc_client,
                     )
                     .await?;
                     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -459,6 +460,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 latest_blockhash,
                                 pump_accounts,
                                 token_amount,
+                                &rpc_client,
                             )
                             .await
                             {

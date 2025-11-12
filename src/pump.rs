@@ -476,6 +476,7 @@ pub async fn sell_pump_token(
     latest_blockhash: Hash,
     pump_accounts: PumpAccounts,
     token_amount: u64,
+    rpc_client: &RpcClient,
 ) -> Result<(), Box<dyn Error>> {
     let owner = wallet.pubkey();
 
@@ -484,9 +485,12 @@ pub async fn sell_pump_token(
         &pump_accounts.mint,
     );
 
+    // Fetch bonding curve to get creator
+    let bonding_curve = get_bonding_curve(rpc_client, pump_accounts.bonding_curve).await?;
+
     let mut ixs = vec![];
     let mut compute_budget_ixs = make_compute_budget_ixs(69_000, 69_000);
-    let sell_ix = make_pump_sell_ix(owner, pump_accounts, token_amount, ata)?;
+    let sell_ix = make_pump_sell_ix(owner, pump_accounts, token_amount, ata, bonding_curve.creator)?;
     ixs.append(&mut compute_budget_ixs);
     ixs.push(sell_ix);
     ixs.push(transfer(&owner, &get_jito_tip_pubkey(), 30_000));
@@ -504,6 +508,7 @@ pub async fn sell_pump_token(
 }
 
 /// Interact With Pump.Fun - 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+/// SELL Instruction (Current Mainnet - 14 accounts)
 /// #1 - Global
 /// #2 - Fee Recipient: Pump.fun Fee Account [Writable]
 /// #3 - Mint
@@ -512,17 +517,23 @@ pub async fn sell_pump_token(
 /// #6 - Associated Token Account (ATA) [Writable]
 /// #7 - User [Writable Signer Fee-Payer]
 /// #8 - System Program
-/// #9 - Associated Token Program
+/// #9 - Creator Vault PDA [Writable]
 /// #10 - Token Program
 /// #11 - Event Authority
 /// #12 - Program: Pump.fun Program
+/// #13 - Fee Config
+/// #14 - Fee Config Program
 pub fn make_pump_sell_ix(
     owner: Pubkey,
     pump_accounts: PumpAccounts,
     token_amount: u64,
     ata: Pubkey,
+    creator: Pubkey,
 ) -> Result<Instruction, Box<dyn Error>> {
-    let accounts: [AccountMeta; 12] = [
+    // Derive creator vault PDA
+    let creator_vault = get_creator_vault(&creator)?;
+
+    let accounts: [AccountMeta; 14] = [
         AccountMeta::new_readonly(
             Pubkey::from_str(PUMP_GLOBAL_ADDRESS)?,
             false,
@@ -537,13 +548,12 @@ pub fn make_pump_sell_ix(
             Pubkey::from_str(SYSTEM_PROGRAM_ID)?,
             false,
         ),
-        AccountMeta::new_readonly(
-            Pubkey::from_str(ASSOCIATED_TOKEN_PROGRAM)?,
-            false,
-        ),
-        AccountMeta::new_readonly(Pubkey::from_str(TOKEN_PROGRAM)?, false),
-        AccountMeta::new_readonly(Pubkey::from_str(EVENT_AUTHORITY)?, false),
-        AccountMeta::new_readonly(Pubkey::from_str(PUMP_FUN_PROGRAM)?, false),
+        AccountMeta::new(creator_vault, false),  // #9 - Creator Vault
+        AccountMeta::new_readonly(Pubkey::from_str(TOKEN_PROGRAM)?, false),  // #10
+        AccountMeta::new_readonly(Pubkey::from_str(EVENT_AUTHORITY)?, false),  // #11
+        AccountMeta::new_readonly(Pubkey::from_str(PUMP_FUN_PROGRAM)?, false),  // #12
+        AccountMeta::new_readonly(Pubkey::from_str(FEE_CONFIG)?, false),  // #13
+        AccountMeta::new_readonly(Pubkey::from_str(FEE_CONFIG_PROGRAM)?, false),  // #14
     ];
 
     // max slippage, careful if not using frontrun protection
@@ -850,6 +860,7 @@ pub async fn send_pump_bump(
             token_amount,
             lamports,
             tip,
+            rpc_client,
         )
         .await?;
 
@@ -858,6 +869,7 @@ pub async fn send_pump_bump(
             latest_blockhash,
             pump_accounts,
             token_amount,
+            rpc_client,
         )
         .await?;
         return Ok(());
@@ -877,7 +889,7 @@ pub async fn send_pump_bump(
         bonding_curve.creator,  // Pass creator from bonding curve
     )?);
 
-    ixs.push(make_pump_sell_ix(owner, pump_accounts, token_amount, ata)?);
+    ixs.push(make_pump_sell_ix(owner, pump_accounts, token_amount, ata, bonding_curve.creator)?);
 
     // 0.00005 sol
     let tip = 50_000;

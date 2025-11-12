@@ -104,6 +104,7 @@ pub async fn run_seller() -> Result<(), Box<dyn Error>> {
                         latest_blockhash,
                         pump_accounts,
                         token_amount,
+                        &rpc_client,
                     )
                     .await
                     .expect("sell pump token");

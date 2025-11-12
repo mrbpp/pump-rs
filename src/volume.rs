@@ -154,6 +154,7 @@ impl Volume {
                                     .await?,
                                 mint_to_pump_accounts(&self.config.mint),
                                 token_amount,
+                                &rpc_client,
                             )
                             .await?;
 
