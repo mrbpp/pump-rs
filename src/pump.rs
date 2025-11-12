@@ -40,7 +40,7 @@ use solana_transaction_status::{
 use crate::constants::{
     ASSOCIATED_TOKEN_PROGRAM, EVENT_AUTHORITY, PUMP_BUY_METHOD,
     PUMP_FEE_ADDRESS, PUMP_FUN_MINT_AUTHORITY, PUMP_FUN_PROGRAM,
-    PUMP_GLOBAL_ADDRESS, PUMP_SELL_METHOD, RENT_PROGRAM, SYSTEM_PROGRAM_ID,
+    PUMP_GLOBAL_ADDRESS, PUMP_SELL_METHOD, SYSTEM_PROGRAM_ID,
     TOKEN_PROGRAM,
 };
 use crate::util::{
@@ -64,6 +64,7 @@ pub struct BondingCurveLayout {
     pub real_sol_reserves: u64,
     pub blob4: u64,
     pub complete: bool,
+    pub creator: Pubkey,  // Added: creator is at bytes 49-80
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -79,7 +80,7 @@ pub struct PumpTokenData {
 }
 
 impl BondingCurveLayout {
-    pub const LEN: usize = 8 + 8 + 8 + 8 + 8 + 8 + 1;
+    pub const LEN: usize = 8 + 8 + 8 + 8 + 8 + 8 + 1 + 32;  // Added 32 bytes for Pubkey
 
     pub fn parse(data: &[u8]) -> Result<Self, std::io::Error> {
         Self::try_from_slice(data)
@@ -203,14 +204,22 @@ pub async fn get_bonding_curve(
         {
             Ok(res) => {
                 if let Some(account) = res.value {
-                    // Convert Vec<u8> to [u8; 49]
                     let data_length = account.data.len();
-                    let data: [u8; 49] =
-                        account.data.try_into().map_err(|_| {
-                            format!("Invalid data length: {}", data_length)
-                        })?;
 
-                    debug!("Raw bytes: {:?}", data);
+                    // Need at least 81 bytes to read creator (49 + 32)
+                    if data_length < 81 {
+                        return Err(format!(
+                            "Data too short: {} bytes (expected at least 81)",
+                            data_length
+                        ).into());
+                    }
+
+                    let data = &account.data;
+                    debug!("Raw bytes (first 81): {:?}", &data[..81]);
+
+                    // Parse creator from bytes 49-81 (32 bytes for Pubkey)
+                    let creator_bytes: [u8; 32] = data[49..81].try_into()?;
+                    let creator_pubkey = Pubkey::new_from_array(creator_bytes);
 
                     let layout = BondingCurveLayout {
                         blob1: u64::from_le_bytes(data[0..8].try_into()?),
@@ -228,6 +237,7 @@ pub async fn get_bonding_curve(
                         ),
                         blob4: u64::from_le_bytes(data[40..48].try_into()?),
                         complete: data[48] != 0,
+                        creator: creator_pubkey,
                     };
 
                     debug!("Parsed BondingCurveLayout: {:?}", layout);
@@ -350,6 +360,7 @@ pub async fn buy_pump_token(
     token_amount: u64,
     lamports: u64,
     tip: u64,
+    rpc_client: &RpcClient,
 ) -> Result<(), Box<dyn Error>> {
     let owner = wallet.pubkey();
 
@@ -362,7 +373,8 @@ pub async fn buy_pump_token(
         pump_accounts.associated_bonding_curve,
         token_amount,
         apply_fee(lamports),
-    )?;
+        rpc_client,
+    ).await?;
 
     ixs.push(transfer(&owner, &get_jito_tip_pubkey(), tip));
 
@@ -378,13 +390,14 @@ pub async fn buy_pump_token(
     Ok(())
 }
 
-pub fn _make_buy_ixs(
+pub async fn _make_buy_ixs(
     owner: Pubkey,
     mint: Pubkey,
-    bonding_curve: Pubkey,
+    bonding_curve_pubkey: Pubkey,
     associated_bonding_curve: Pubkey,
     token_amount: u64,
     lamports: u64,
+    rpc_client: &RpcClient,
 ) -> Result<Vec<Instruction>, Box<dyn Error>> {
     let mut ixs = vec![];
     let ata = spl_associated_token_account::get_associated_token_address(
@@ -399,14 +412,19 @@ pub fn _make_buy_ixs(
             &spl_token::id(),
         ),
     );
+
+    // Fetch bonding curve to get creator
+    let bonding_curve = get_bonding_curve(rpc_client, bonding_curve_pubkey).await?;
+
     ixs.push(make_pump_swap_ix(
         owner,
         mint,
-        bonding_curve,
+        bonding_curve_pubkey,
         associated_bonding_curve,
         token_amount,
         lamports,
         ata,
+        bonding_curve.creator,  // Pass creator from bonding curve
     )?);
 
     Ok(ixs)
@@ -540,8 +558,17 @@ pub fn make_pump_sell_ix(
     ))
 }
 
+/// Derive the creator vault PDA for a given creator
+/// This is used in pump.fun buy transactions to route fees to token creators
+pub fn get_creator_vault(creator: &Pubkey) -> Result<Pubkey, Box<dyn Error>> {
+    Ok(Pubkey::find_program_address(
+        &[b"creator-vault", creator.as_ref()],
+        &Pubkey::from_str(PUMP_FUN_PROGRAM)?,
+    ).0)
+}
+
 /// Interact With Pump.Fun 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-/// Input Accounts
+/// Input Accounts (Updated May-August 2024)
 /// #1 - Global: 4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf
 /// #2 - Fee Recipient: Pump.fun Fee Account [Writable]
 /// #3 - Mint
@@ -551,7 +578,7 @@ pub fn make_pump_sell_ix(
 /// #7 - User - owner, sender [Writable, Signer, Fee Payer]
 /// #8 - System Program (11111111111111111111111111111111)
 /// #9 - Token Program (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)
-/// #10 - Rent (SysvarRent111111111111111111111111111111111)
+/// #10 - Creator Vault [Writable] (replaces Rent in old version)
 /// #11 - Event Authority: Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1
 /// #12 - Program: Pump.fun Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 pub fn make_pump_swap_ix(
@@ -562,7 +589,12 @@ pub fn make_pump_swap_ix(
     token_amount: u64,
     lamports: u64,
     ata: Pubkey,
+    creator: Pubkey,  // creator pubkey from bonding curve
 ) -> Result<Instruction, Box<dyn Error>> {
+    // Calculate creator vault PDA using helper function
+    let creator_vault = get_creator_vault(&creator)?;
+
+    // 12 accounts (May-August 2024 update)
     let accounts: [AccountMeta; 12] = [
         AccountMeta::new_readonly(
             Pubkey::from_str(PUMP_GLOBAL_ADDRESS)?,
@@ -579,9 +611,9 @@ pub fn make_pump_swap_ix(
             false,
         ),
         AccountMeta::new_readonly(Pubkey::from_str(TOKEN_PROGRAM)?, false),
-        AccountMeta::new_readonly(Pubkey::from_str(RENT_PROGRAM)?, false),
-        AccountMeta::new_readonly(Pubkey::from_str(EVENT_AUTHORITY)?, false),
-        AccountMeta::new_readonly(Pubkey::from_str(PUMP_FUN_PROGRAM)?, false),
+        AccountMeta::new(creator_vault, false),  // #10 - Creator Vault
+        AccountMeta::new_readonly(Pubkey::from_str(EVENT_AUTHORITY)?, false),  // #11
+        AccountMeta::new_readonly(Pubkey::from_str(PUMP_FUN_PROGRAM)?, false),  // #12
     ];
 
     let data = PumpFunSwapInstructionData {
@@ -822,6 +854,7 @@ pub async fn send_pump_bump(
         token_amount,
         lamports,
         ata,
+        bonding_curve.creator,  // Pass creator from bonding curve
     )?);
 
     ixs.push(make_pump_sell_ix(owner, pump_accounts, token_amount, ata)?);

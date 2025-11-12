@@ -53,6 +53,7 @@ pub struct AppState {
     pub dynamic_tip: Arc<RwLock<u64>>,
     pub lamports: u64,
     pub slot: Arc<RwLock<u64>>,
+    pub rpc_client: Arc<RpcClient>,
 }
 
 #[get("/blockhash")]
@@ -142,6 +143,7 @@ pub async fn handle_pump_buy_v2(
         &wallet,
         &mut searcher_client,
         &latest_blockhash,
+        &state.rpc_client,
     )
     .await?;
 
@@ -185,6 +187,7 @@ pub async fn handle_pump_buy(
         &wallet,
         &mut searcher_client,
         &latest_blockhash,
+        &state.rpc_client,
     )
     .await?;
     Ok(HttpResponse::Ok().json(json!({
@@ -216,6 +219,7 @@ pub async fn _handle_pump_buy(
     wallet: &Keypair,
     searcher_client: &mut SearcherClient,
     latest_blockhash: &Hash,
+    rpc_client: &RpcClient,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Calculate token amount once, using the original lamports value
     let token_amount = pump::get_token_amount(
@@ -237,7 +241,8 @@ pub async fn _handle_pump_buy(
             pump_buy_request.associated_bonding_curve,
             token_amount,
             lamports,
-        )?);
+            rpc_client,
+        ).await?);
         info!("buying {} tokens with {} lamports", token_amount, lamports);
 
         ixs.push(transfer(
@@ -316,6 +321,9 @@ pub async fn run_pump_service(lamports: u64) -> std::io::Result<()> {
     let slot = Arc::new(RwLock::new(0));
     update_slot(slot.clone());
 
+    // Create rpc_client before AppState to include it
+    let rpc_client = Arc::new(RpcClient::new(env("RPC_URL")));
+
     let app_state = Data::new(AppState {
         wallet,
         searcher_client,
@@ -323,10 +331,10 @@ pub async fn run_pump_service(lamports: u64) -> std::io::Result<()> {
         dynamic_tip,
         lamports,
         slot,
+        rpc_client: rpc_client.clone(),
     });
 
     // poll for latest blockhash to trim 200ms
-    let rpc_client = Arc::new(RpcClient::new(env("RPC_URL")));
     tokio::spawn(update_latest_blockhash(
         rpc_client.clone(),
         app_state.latest_blockhash.clone(),

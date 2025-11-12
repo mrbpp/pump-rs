@@ -237,6 +237,7 @@ async fn ladder_buys(
     snipe_buy: u64,
     latest_blockhash: Hash,
     _searcher_client: &mut SearcherClient,
+    rpc_client: &RpcClient,
 ) -> Result<(), Box<dyn Error>> {
     // let mut first_buy_bundle = vec![];
     // let mut second_buy_bundle = vec![];
@@ -255,7 +256,8 @@ async fn ladder_buys(
             pool_state.associated_bonding_curve,
             token_amount,
             apply_fee(lamports_amount),
-        )?;
+            rpc_client,
+        ).await?;
         // if i == 4 || i == 9 {
         //     ixs.push(transfer(
         //         &wallet.pubkey(),
@@ -361,6 +363,9 @@ pub async fn launch(
     let mut pool_state =
         PoolState::new(mint, bonding_curve, associated_bonding_curve);
 
+    // Create rpc_client before using it in _make_buy_ixs
+    let rpc_client = RpcClient::new(env("RPC_URL"));
+
     if let Some(dev_buy) = dev_buy {
         let token_amount = get_token_amount(
             DEFAULT_SOL_INITIAL_RESERVES,
@@ -377,7 +382,8 @@ pub async fn launch(
             associated_bonding_curve,
             token_amount,
             apply_fee(dev_buy),
-        )?);
+            &rpc_client,
+        ).await?);
 
         pool_state.virtual_sol_reserves += dev_buy;
         pool_state.virtual_token_reserves -= token_amount;
@@ -385,8 +391,6 @@ pub async fn launch(
 
     // static tip of 50000 lamports for the launch
     ixs.push(transfer(&signer.pubkey(), &get_jito_tip_pubkey(), 50000));
-
-    let rpc_client = RpcClient::new(env("RPC_URL"));
     let latest_blockhash = rpc_client.get_latest_blockhash().await?;
     let create_tx =
         VersionedTransaction::from(Transaction::new_signed_with_payer(
@@ -419,6 +423,7 @@ pub async fn launch(
             snipe_buy.unwrap(),
             latest_blockhash,
             &mut searcher_client,
+            &rpc_client,
         )
         .await?;
     }
@@ -727,6 +732,7 @@ mod launcher_tests {
             1_000_000, // 0.001 SOL as snipe_buy amount
             latest_blockhash,
             &mut searcher_client,
+            &rpc_client,
         )
         .await
         .unwrap();
