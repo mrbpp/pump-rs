@@ -611,6 +611,26 @@ Bundle jkl012 finalized
 
 **Interval:** Buys every 6 seconds
 
+**Cost Calculation:**
+
+Each bump performs a buy and immediate sell in a single Jito bundle. The cost per bump follows this formula:
+
+```
+Cost per bump ≈ (Bump Amount × 0.025) + 0.000055 SOL
+```
+
+**Examples:**
+- 2 SOL bump: (2 × 0.025) + 0.000055 = ~0.05 SOL loss (~2.5%)
+- 3 SOL bump: (3 × 0.025) + 0.000055 = ~0.075 SOL loss (~2.5%)
+
+**Note:** Larger bumps may have higher slippage, so expect 2.5-4% on bigger amounts.
+
+**Configuration:**
+- **Delay between bumps:** `src/main.rs:300` (currently 6 seconds)
+- **Bump amount & Jito tip:** Edit `lamports` and `tip` in `send_pump_bump` function in `src/pump.rs:833` and `src/pump.rs:895`
+  - Default bump amount: 22,800,000 lamports (0.0228 SOL)
+  - Default Jito tip: 50,000 lamports (0.00005 SOL)
+
 **Use when:** Creating artificial volume (use responsibly)
 
 ---
