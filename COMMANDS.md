@@ -255,6 +255,21 @@ Block Engine: https://mainnet.block-engine.jito.wtf
 - Your wallet may have Associated Token Accounts (ATAs) with 0 balance
 - These are safely skipped - you can't sell 0 tokens
 
+**Example output:**
+```
+[INFO] Pump tokens held: 2
+[INFO] Checking token: 9d8MMJHLSTFMJK1uKVut2P63KuQaxUfdMkUWVFoapump, amount: 357547483969
+[INFO] Selling 357547483969...
+[INFO] Successfully sold...
+
+[INFO] Checking token: 3odSRmNsp3hnH2dhRys2gLmejQQhw2ZQgTPwCgwtx72r, amount: 357547484088
+[INFO] Selling 357547484088...
+[INFO] Successfully sold...
+
+[INFO] Checking token: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v, amount: 1000353
+[INFO] SKIPPED (USDC)
+```
+
 **Filters are optional** - Comment them out in `src/main.rs` (lines 343-346, 353-356) if you want error handler to catch everything instead.
 
 **Use when:** Liquidating entire portfolio
