@@ -43,6 +43,19 @@ use {
 
 use log::{info, warn};
 
+// Helper function to identify known stablecoins and wrapped tokens
+fn get_known_token_symbol(mint: &Pubkey) -> Option<&'static str> {
+    let mint_str = mint.to_string();
+    match mint_str.as_str() {
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" => Some("USDC"),
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" => Some("USDT"),
+        "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB" => Some("USD1"),
+        "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh" => Some("wBTC"),
+        "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs" => Some("wETH"),
+        _ => None,
+    }
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv::from_filename(".env")?;
@@ -341,7 +354,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 // FILTER 1: Skip if NOT a pump.fun token
                 if !pump_mints.contains(&mint) {
-                    info!("SKIPPED (not pump.fun): {}", mint);
+                    // Check if it's a known stablecoin/wrapped token
+                    if let Some(symbol) = get_known_token_symbol(&mint) {
+                        info!("SKIPPED ({})", symbol);
+                    } else {
+                        info!("SKIPPED (not pump.fun): {}", mint);
+                    }
                     continue;
                 }
 
