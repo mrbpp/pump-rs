@@ -392,6 +392,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                     tokio::time::sleep(Duration::from_millis(300)).await;
+                } else {
+                    info!("SKIPPED (zero balance): {}", mint);
                 }
             }
         }

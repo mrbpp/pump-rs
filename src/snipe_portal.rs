@@ -104,6 +104,7 @@ pub async fn snipe_portal(lamports: u64) -> Result<(), Box<dyn Error>> {
                 let searcher_client = searcher_client.clone();
                 let slot = slot.clone();
                 let dynamic_tip = dynamic_tip.clone();
+                let rpc_client = rpc_client.clone();
                 tokio::spawn(async move {
                     let latest_blockhash = latest_blockhash.read().await;
                     let mut searcher_client = searcher_client.lock().await;
@@ -160,6 +161,7 @@ pub async fn snipe_portal(lamports: u64) -> Result<(), Box<dyn Error>> {
                         &wallet.clone(),
                         &mut searcher_client,
                         &latest_blockhash,
+                        &rpc_client,
                     )
                     .await
                     .expect("handle pump buy");
