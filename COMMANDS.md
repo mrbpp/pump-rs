@@ -234,9 +234,18 @@ Block Engine: https://mainnet.block-engine.jito.wtf
 ```
 
 **What it does:**
-- Finds all pump.fun token holdings
-- Sells entire balance of each token
+- Finds all pump.fun token holdings from API
+- **FILTER 1**: Skips non-pump.fun tokens (USDC, etc.) via HashSet lookup
+- **FILTER 2**: Skips graduated tokens (bonding curve closed)
+- **Error Handler**: Catches any sell failures and continues to next token
 - Waits 300ms between sells
+
+**How it works:**
+1. **FILTER 1** (fast): Checks if token is in pump.fun API response (no RPC call)
+2. **FILTER 2** (optimization): Checks if bonding curve exists (1 RPC call per token)
+3. **Error Handler** (safety net): Catches network errors, RPC failures, etc.
+
+**Filters are optional** - Comment them out in `src/main.rs` (lines 343-346, 353-356) if you want error handler to catch everything instead.
 
 **Use when:** Liquidating entire portfolio
 
