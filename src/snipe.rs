@@ -133,7 +133,6 @@ pub async fn snipe_pump(lamports: u64) -> Result<(), Box<dyn Error>> {
                                     latest_blockhash.clone();
                                 let wallet = wallet.clone();
                                 let searcher_client = searcher_client.clone();
-                                let rpc_client = rpc_client.clone();
                                 tokio::spawn(async move {
                                     let json_parsable = data
                                         .trim_start_matches(
@@ -172,7 +171,6 @@ pub async fn snipe_pump(lamports: u64) -> Result<(), Box<dyn Error>> {
                                         &wallet.clone(),
                                         &mut searcher_client,
                                         &latest_blockhash,
-                                        &rpc_client,
                                     )
                                     .await
                                     .expect("handle pump buy");
