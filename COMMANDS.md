@@ -245,6 +245,10 @@ Block Engine: https://mainnet.block-engine.jito.wtf
 2. **FILTER 2** (optimization): Checks if bonding curve exists (1 RPC call per token)
 3. **Error Handler** (safety net): Catches network errors, RPC failures, etc.
 
+**Friendly logging for known tokens:**
+- Shows `SKIPPED (USDC)`, `SKIPPED (USDT)`, `SKIPPED (USD1)`, `SKIPPED (wBTC)`, `SKIPPED (wETH)` for recognized stablecoins/wrapped tokens
+- Makes output cleaner when sweeping wallets that hold value tokens
+
 **Filters are optional** - Comment them out in `src/main.rs` (lines 343-346, 353-356) if you want error handler to catch everything instead.
 
 **Use when:** Liquidating entire portfolio
