@@ -247,7 +247,13 @@ Block Engine: https://mainnet.block-engine.jito.wtf
 
 **Friendly logging for known tokens:**
 - Shows `SKIPPED (USDC)`, `SKIPPED (USDT)`, `SKIPPED (USD1)`, `SKIPPED (wBTC)`, `SKIPPED (wETH)` for recognized stablecoins/wrapped tokens
+- Shows `SKIPPED (zero balance): {mint}` for pump.fun tokens with 0 balance in wallet
 - Makes output cleaner when sweeping wallets that hold value tokens
+
+**Why zero balance tokens appear:**
+- The pump.fun API returns all tokens you've ever held (even if current balance is 0)
+- Your wallet may have Associated Token Accounts (ATAs) with 0 balance
+- These are safely skipped - you can't sell 0 tokens
 
 **Filters are optional** - Comment them out in `src/main.rs` (lines 343-346, 353-356) if you want error handler to catch everything instead.
 
