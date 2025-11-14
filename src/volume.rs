@@ -112,6 +112,7 @@ impl Volume {
                         token_amount,
                         self.config.lamports,
                         self.config.tip,
+                        &rpc_client,
                     )
                     .await?;
 

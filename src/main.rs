@@ -307,7 +307,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let rpc_client = RpcClient::new(env("RPC_URL").to_string());
             let pump_tokens =
                 pump::get_tokens_held_pump(&keypair.pubkey()).await?;
-            info!("Tokens held: {}", pump_tokens.len());
+            info!("Pump tokens held: {}", pump_tokens.len());
+
+            // LOG 1: Show all pump.fun tokens from API
+            for token in &pump_tokens {
+                info!("Pump API token: {}", token.mint);
+            }
+
+            // Create a HashSet of pump.fun token mints for fast lookup
+            let pump_mints: std::collections::HashSet<Pubkey> = pump_tokens
+                .iter()
+                .filter_map(|t| Pubkey::from_str(&t.mint).ok())
+                .collect();
+
+            // LOG 2: Show HashSet size
+            info!("HashSet contains {} pump tokens", pump_mints.len());
+
             let token_accounts = rpc_client
                 .get_token_accounts_by_owner(
                     &keypair.pubkey(),
@@ -320,18 +335,44 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let holding =
                     parse_holding(token_account).expect("parse holding");
                 let mint = holding.mint;
+
+                // LOG 3: Check every token in wallet
+                info!("Checking token: {}, amount: {}", mint, holding.amount);
+
+                // FILTER 1: Skip if NOT a pump.fun token
+                if !pump_mints.contains(&mint) {
+                    info!("SKIPPED (not pump.fun): {}", mint);
+                    continue;
+                }
+
+                info!("Token IS pump.fun: {}", mint);
+
                 let pump_accounts = pump::mint_to_pump_accounts(&mint);
                 if holding.amount > 0 {
-                    let mint = holding.mint;
+                    // FILTER 2: Skip if bonding curve doesn't exist (graduated tokens)
+                    if pump::get_bonding_curve(&rpc_client, pump_accounts.bonding_curve).await.is_err() {
+                        warn!("Skipping {}: Token has graduated to Pump AMM", mint);
+                        continue;
+                    }
+
                     info!("Selling {} of {}", holding.amount, mint);
-                    pump::sell_pump_token(
+                    match pump::sell_pump_token(
                         &keypair,
                         rpc_client.get_latest_blockhash().await?,
                         pump_accounts,
                         holding.amount,
                         &rpc_client,
                     )
-                    .await?;
+                    .await
+                    {
+                        Ok(_) => {
+                            info!("Successfully sold {} of {}", holding.amount, mint);
+                        }
+                        Err(e) => {
+                            warn!("Failed to sell {} of {}: {}", holding.amount, mint, e);
+                            warn!("Continuing to next token...");
+                        }
+                    }
                     tokio::time::sleep(Duration::from_millis(300)).await;
                 }
             }
@@ -492,6 +533,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 token_amount,
                                 lamports * 105 / 100, // slippage
                                 tip,
+                                &rpc_client,
                             )
                             .await
                             {
